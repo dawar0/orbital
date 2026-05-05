@@ -2,7 +2,7 @@
 
 A ChatGPT-style interface for due diligence on commercial real estate documents. Upload leases, title reports, environmental assessments, and purchase agreements into a single conversation, then ask questions across the whole library and get answers with inline, hoverable citations that jump straight to the source page.
 
-> 📹 **Loom walkthrough:** _<!-- TODO -->_
+> 📹 **Loom walkthrough:** [https://www.loom.com/share/6456ec6f10124706811c6112ba4bb04d](https://www.loom.com/share/6456ec6f10124706811c6112ba4bb04d)
 >
 
 ---

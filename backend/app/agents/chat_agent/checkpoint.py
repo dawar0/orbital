@@ -18,6 +18,7 @@ from langgraph.checkpoint.base import (
     get_checkpoint_id,
     get_checkpoint_metadata,
 )
+from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -496,11 +497,23 @@ def _persist_visible_messages(
 
 def _public_state_snapshot(state: dict[str, Any]) -> dict[str, Any] | None:
     snapshot = {
-        key: make_json_safe(state[key])
+        key: _make_public_json_safe(state[key])
         for key in PUBLIC_STATE_KEYS
         if key in state and state[key] not in (None, [], {})
     }
     return snapshot or None
+
+
+def _make_public_json_safe(value: Any) -> Any:
+    if isinstance(value, BaseModel):
+        return value.model_dump(mode="json", exclude_none=True)
+    if isinstance(value, list):
+        return [_make_public_json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [_make_public_json_safe(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _make_public_json_safe(item) for key, item in value.items()}
+    return make_json_safe(value)
 
 
 def _latest_assistant_message_id(messages: Sequence[Any]) -> str | None:

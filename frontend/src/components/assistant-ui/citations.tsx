@@ -25,6 +25,28 @@ export const ThreadCitationsContext = createContext<
 	Record<string, AssistantCitation[]>
 >({});
 
+const pythonUuidPattern = /^UUID\('([^']+)'\)$/;
+
+function normalizeCitationId(value: unknown) {
+	if (typeof value !== "string") {
+		return value;
+	}
+
+	return value.match(pythonUuidPattern)?.[1] ?? value;
+}
+
+function normalizeCitation(
+	citation: Record<string, unknown>,
+): AssistantCitation {
+	return {
+		...citation,
+		chunk_id: normalizeCitationId(citation.chunk_id) as string | undefined,
+		document_id: normalizeCitationId(citation.document_id) as
+			| string
+			| undefined,
+	} as AssistantCitation;
+}
+
 export function extractCitations(value: unknown) {
 	if (!value || typeof value !== "object") {
 		return EMPTY_CITATIONS;
@@ -36,10 +58,12 @@ export function extractCitations(value: unknown) {
 		return EMPTY_CITATIONS;
 	}
 
-	return citations.filter(
-		(citation): citation is AssistantCitation =>
-			typeof citation === "object" && citation !== null,
-	);
+	return citations
+		.filter(
+			(citation): citation is Record<string, unknown> =>
+				typeof citation === "object" && citation !== null,
+		)
+		.map(normalizeCitation);
 }
 
 export function areCitationsEqual(
