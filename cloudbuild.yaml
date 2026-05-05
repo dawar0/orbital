@@ -1,0 +1,121 @@
+substitutions:
+  _REGION: asia-southeast1
+  _API_SERVICE: orbital-api
+  _WORKER_SERVICE: orbital-worker
+  _FRONTEND_SERVICE: orbital-frontend
+  _API_URL: http://localhost:8000
+  _TAG: latest
+  _ANTHROPIC_MODEL: claude-sonnet-4-6
+  _SUPABASE_URL: https://zpmjghesltwasklzzxum.supabase.co
+  _SUPABASE_STORAGE_BUCKET: documents
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: build-api
+    args:
+      - build
+      - --target=api
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_API_SERVICE}:${_TAG}
+      - backend
+
+  - name: gcr.io/cloud-builders/docker
+    id: build-worker
+    args:
+      - build
+      - --target=worker
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_WORKER_SERVICE}:${_TAG}
+      - backend
+
+  - name: gcr.io/cloud-builders/docker
+    id: build-frontend
+    args:
+      - build
+      - --build-arg=VITE_API_BASE_URL=${_API_URL}
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_FRONTEND_SERVICE}:${_TAG}
+      - frontend
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-api
+    waitFor: [build-api]
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_API_SERVICE}:${_TAG}
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-worker
+    waitFor: [build-worker]
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_WORKER_SERVICE}:${_TAG}
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-frontend
+    waitFor: [build-frontend]
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_FRONTEND_SERVICE}:${_TAG}
+
+  - name: gcr.io/cloud-builders/gcloud
+    id: deploy-api
+    waitFor: [push-api]
+    args:
+      - run
+      - deploy
+      - ${_API_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_API_SERVICE}:${_TAG}
+      - --region=${_REGION}
+      - --port=8080
+      - --update-secrets=DATABASE_URL=DATABASE_URL:latest
+      - --update-secrets=REDIS_URL=REDIS_URL:latest
+      - --update-secrets=ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest
+      - --update-secrets=GEMINI_API_KEY=GEMINI_API_KEY:latest
+      - --update-secrets=SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest
+      - --update-secrets=SUPABASE_PUBLISHABLE_KEY=SUPABASE_PUBLISHABLE_KEY:latest
+      - --set-env-vars=ANTHROPIC_MODEL=${_ANTHROPIC_MODEL}
+      - --set-env-vars=SUPABASE_URL=${_SUPABASE_URL}
+      - --set-env-vars=SUPABASE_STORAGE_BUCKET=${_SUPABASE_STORAGE_BUCKET}
+
+  - name: gcr.io/cloud-builders/gcloud
+    id: deploy-worker
+    waitFor: [push-worker]
+    args:
+      - run
+      - deploy
+      - ${_WORKER_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_WORKER_SERVICE}:${_TAG}
+      - --region=${_REGION}
+      - --port=8080
+      - --min-instances=1
+      - --max-instances=1
+      - --concurrency=1
+      - --no-cpu-throttling
+      - --ingress=internal
+      - --no-allow-unauthenticated
+      - --update-secrets=DATABASE_URL=DATABASE_URL:latest
+      - --update-secrets=REDIS_URL=REDIS_URL:latest
+      - --update-secrets=ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest
+      - --update-secrets=GEMINI_API_KEY=GEMINI_API_KEY:latest
+      - --update-secrets=SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest
+      - --update-secrets=SUPABASE_PUBLISHABLE_KEY=SUPABASE_PUBLISHABLE_KEY:latest
+      - --set-env-vars=ANTHROPIC_MODEL=${_ANTHROPIC_MODEL}
+      - --set-env-vars=SUPABASE_URL=${_SUPABASE_URL}
+      - --set-env-vars=SUPABASE_STORAGE_BUCKET=${_SUPABASE_STORAGE_BUCKET}
+
+  - name: gcr.io/cloud-builders/gcloud
+    id: deploy-frontend
+    waitFor: [push-frontend]
+    args:
+      - run
+      - deploy
+      - ${_FRONTEND_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_FRONTEND_SERVICE}:${_TAG}
+      - --region=${_REGION}
+      - --port=8080
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_API_SERVICE}:${_TAG}
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_WORKER_SERVICE}:${_TAG}
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/orbital/${_FRONTEND_SERVICE}:${_TAG}
